@@ -1,0 +1,52 @@
+system:
+  name: chaos-forecasting
+  version: 0.1.0
+  description: Configuration for chaos forecasting experiments
+  systems:
+    - name: double_pendulum
+      parameters:
+        mass1: 1.0
+        mass2: 1.0
+        length1: 1.0
+        length2: 1.0
+        initial_angle1: 0.5
+        initial_angle2: 0.5
+        initial_velocity1: 0.0
+        initial_velocity2: 0.0
+      integrator: RK4
+      num_steps: 10000
+      time_step: 0.01
+
+    - name: duffing_oscillator
+      parameters:
+        mass: 1.0
+        damping: 0.2
+        stiffness: -1.0
+        nonlinearity: 1.0
+        initial_position: 0.5
+        initial_velocity: 0.0
+      integrator: Dopri5
+      num_steps: 5000
+      time_step: 0.01
+
+    - name: magnetic_pendulum
+      parameters:
+        mass: 0.5
+        length: 1.0
+        magnetic_field: 0.1
+        initial_angle: 0.1
+        initial_velocity: 0.0
+      integrator: RK4
+      num_steps: 20000
+      time_step: 0.005
+
+metrics:
+  - CRPS
+  - Energy Score
+  - W1
+  - PIT
+  - reliability
+
+output:
+  figures: experiments/figs/
+  data: data/chaotic/
