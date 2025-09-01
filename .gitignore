@@ -1,0 +1,71 @@
+# -----------------------------
+# Python bytecode and cache
+# -----------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# -----------------------------
+# Virtual environments
+# -----------------------------
+.venv/
+venv/
+env/
+.conda/
+*.egg-info/
+.eggs/
+
+# -----------------------------
+# Jupyter / IPython
+# -----------------------------
+.ipynb_checkpoints/
+*.ipynb
+*.ipynb.json
+
+# -----------------------------
+# Build / logs / temp
+# -----------------------------
+*.log
+*.tmp
+*.out
+*.aux
+*.pdf
+*.dvi
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+
+# -----------------------------
+# Data & outputs (we’ll store raw sims elsewhere)
+# -----------------------------
+data/
+datasets/
+outputs/
+results/
+figs/
+*.png
+*.jpg
+*.svg
+*.gif
+*.mp4
+*.avi
+*.h5
+*.npy
+*.npz
+*.csv
+
+# -----------------------------
+# IDE / editor files
+# -----------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# -----------------------------
+# OS-specific
+# -----------------------------
+.DS_Store
+Thumbs.db
