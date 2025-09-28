@@ -1,77 +1,51 @@
-from scipy.integrate import solve_ivp
 import numpy as np
+# -------------------------------
+# Double Pendulum System
+# -------------------------------
+
+def wrap_angle(theta: float) -> float:
+    """Wrap angle into [-pi, pi]."""
+    return (theta + np.pi) % (2 * np.pi) - np.pi
+
 
 class DoublePendulum:
-    def __init__(self, length1, length2, mass1, mass2, theta1, theta2, omega1, omega2):
-        self.length1 = length1
-        self.length2 = length2
-        self.mass1 = mass1
-        self.mass2 = mass2
-        self.theta1 = theta1
-        self.theta2 = theta2
-        self.omega1 = omega1
-        self.omega2 = omega2
+    def __init__(self, m1=1.0, m2=1.0, l1=1.0, l2=1.0, g=9.81):
+        self.m1, self.m2, self.l1, self.l2, self.g = m1, m2, l1, l2, g
 
-    def equations(self, t, y):
-        theta1, omega1, theta2, omega2 = y
-        delta = theta2 - theta1
+    def derivs(self, t: float, x: np.ndarray) -> np.ndarray:
+        """
+        Equations of motion for the double pendulum.
+        x = [theta1, omega1, theta2, omega2]
+        """
+        m1, m2, l1, l2, g = self.m1, self.m2, self.l1, self.l2, self.g
+        th1, w1, th2, w2 = x
+        delta = th2 - th1
+        den1 = (2*m1 + m2 - m2 * np.cos(2*th1 - 2*th2))
 
-        denom1 = (self.mass1 + self.mass2) * self.length1 - self.mass2 * self.length1 * np.cos(delta) ** 2
-        denom2 = (self.length2 / self.length1) * denom1
+        dw1 = (
+            -g*(2*m1+m2)*np.sin(th1)
+            - m2*g*np.sin(th1 - 2*th2)
+            - 2*np.sin(delta)*m2*(w2**2*l2 + w1**2*l1*np.cos(delta))
+        ) / (l1 * den1)
 
-        dtheta1_dt = omega1
-        domega1_dt = ((self.mass2 * self.length1 * omega1 ** 2 * np.sin(delta) * np.cos(delta) +
-                       self.mass2 * 9.81 * np.sin(theta2) * np.cos(delta) +
-                       self.mass2 * self.length2 * omega2 ** 2 * np.sin(delta) -
-                       (self.mass1 + self.mass2) * 9.81 * np.sin(theta1)) / denom1)
+        dw2 = (
+            2*np.sin(delta) * (
+                w1**2*l1*(m1+m2)
+                + g*(m1+m2)*np.sin(th1)
+                + w2**2*l2*m2*np.cos(delta)
+            )
+        ) / (l2 * den1)
 
-        dtheta2_dt = omega2
-        domega2_dt = ((-self.mass2 * self.length2 * omega2 ** 2 * np.sin(delta) * np.cos(delta) +
-                       (self.mass1 + self.mass2) * 9.81 * np.sin(theta1) * np.cos(delta) -
-                       (self.mass1 + self.mass2) * self.length1 * omega1 ** 2 * np.sin(delta) -
-                       (self.mass1 + self.mass2) * 9.81 * np.sin(theta2)) / denom2)
+        return np.array([w1, dw1, w2, dw2], dtype=float)
 
-        return [dtheta1_dt, domega1_dt, dtheta2_dt, domega2_dt]
+    def total_energy(self, x: np.ndarray) -> float:
+        """Compute total energy (K + U)."""
+        m1, m2, l1, l2, g = self.m1, self.m2, self.l1, self.l2, self.g
+        th1, w1, th2, w2 = x
+        delta = th2 - th1
 
-    def simulate(self, t_span, t_eval):
-        y0 = [self.theta1, self.omega1, self.theta2, self.omega2]
-        sol = solve_ivp(self.equations, t_span, y0, t_eval=t_eval)
-        return sol.t, sol.y
+        T = 0.5*m1*(l1*w1)**2 \
+            + 0.5*m2*((l1*w1)**2 + (l2*w2)**2 + 2*l1*l2*w1*w2*np.cos(delta))
 
-class DuffingOscillator:
-    def __init__(self, mass, damping, stiffness, nonlinearity, initial_position, initial_velocity):
-        self.mass = mass
-        self.damping = damping
-        self.stiffness = stiffness
-        self.nonlinearity = nonlinearity
-        self.initial_position = initial_position
-        self.initial_velocity = initial_velocity
-
-    def equations(self, t, y):
-        position, velocity = y
-        dposition_dt = velocity
-        dvelocity_dt = (-self.damping * velocity - self.stiffness * position - self.nonlinearity * position ** 3) / self.mass
-        return [dposition_dt, dvelocity_dt]
-
-    def simulate(self, t_span, t_eval):
-        y0 = [self.initial_position, self.initial_velocity]
-        sol = solve_ivp(self.equations, t_span, y0, t_eval=t_eval)
-        return sol.t, sol.y
-
-class MagneticPendulum:
-    def __init__(self, length, mass, angle, angular_velocity):
-        self.length = length
-        self.mass = mass
-        self.angle = angle
-        self.angular_velocity = angular_velocity
-
-    def equations(self, t, y):
-        angle, angular_velocity = y
-        dangle_dt = angular_velocity
-        dangular_velocity_dt = -9.81 / self.length * np.sin(angle)
-        return [dangle_dt, dangular_velocity_dt]
-
-    def simulate(self, t_span, t_eval):
-        y0 = [self.angle, self.angular_velocity]
-        sol = solve_ivp(self.equations, t_span, y0, t_eval=t_eval)
-        return sol.t, sol.y
+        U = -(m1+m2)*g*l1*np.cos(th1) - m2*g*l2*np.cos(th2)
+        return T + U

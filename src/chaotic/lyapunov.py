@@ -1,51 +1,65 @@
-def compute_ftle(trajectory, time_step):
-    """
-    Compute the Finite-Time Lyapunov Exponent (FTLE) for a given trajectory.
+import numpy as np
+from .integrators import rk4_step
+from .systems import wrap_angle
 
-    Parameters:
-    trajectory (np.ndarray): The trajectory of the system as a 2D array (time x dimensions).
-    time_step (float): The time step between points in the trajectory.
+rng = np.random.default_rng(123)
+
+
+def lyapunov_benettin(system, x0, dt=0.005, t_end=10.0, d0=1e-8, renorm_every=1):
+    """
+    Estimate the largest Lyapunov exponent (LLE) via Benettin's method.
+
+    Args:
+        system: system object with `.derivs` method
+        x0: initial state vector (ndarray)
+        dt: timestep
+        t_end: total integration time
+        d0: initial separation norm between trajectories
+        renorm_every: steps after which we renormalize the perturbation
 
     Returns:
-    np.ndarray: The FTLE values for the trajectory.
+        times: array of times
+        ftle: array of finite-time Lyapunov exponent estimates
+        lle: final estimated largest Lyapunov exponent
     """
-    # Calculate the Jacobian matrix for the trajectory
-    # (This is a placeholder for the actual Jacobian calculation)
-    jacobian = np.gradient(trajectory, axis=0) / time_step
+    # Create small random perturbation of norm d0
+    delta = rng.normal(size=len(x0))
+    delta = d0 * delta / np.linalg.norm(delta)
 
-    # Compute the FTLE
-    ftle = np.log(np.linalg.norm(jacobian, axis=1)) / time_step
+    x = x0.copy()
+    y = x0 + delta
 
-    return ftle
+    n_steps = int(np.ceil(t_end / dt))
+    times = np.arange(n_steps + 1) * dt
+    ftle = np.zeros(n_steps + 1)
 
+    sum_log = 0.0
+    curr_norm = d0
+    t = 0.0
+    ftle[0] = 0.0
 
-def lyapunov_exponent(trajectory, time_step):
-    """
-    Calculate the Lyapunov exponent from a trajectory.
+    for k in range(1, n_steps + 1):
+        # advance both trajectories
+        x = rk4_step(system.derivs, t, x, dt)
+        y = rk4_step(system.derivs, t, y, dt)
+        t += dt
 
-    Parameters:
-    trajectory (np.ndarray): The trajectory of the system as a 2D array (time x dimensions).
-    time_step (float): The time step between points in the trajectory.
+        # compute difference
+        diff = y - x
+        # wrap angular components to stay consistent
+        diff[0] = wrap_angle(diff[0])
+        diff[2] = wrap_angle(diff[2])
 
-    Returns:
-    float: The Lyapunov exponent.
-    """
-    ftle_values = compute_ftle(trajectory, time_step)
-    return np.mean(ftle_values)
+        new_norm = np.linalg.norm(diff)
 
+        if (k % renorm_every) == 0 and new_norm > 0:
+            sum_log += np.log(new_norm / curr_norm)
+            diff = (d0 / new_norm) * diff
+            y = x + diff
+            curr_norm = d0
 
-def main():
-    # Example usage of the functions
-    import numpy as np
+        # finite-time LE up to time t
+        ftle[k] = sum_log / t if t > 0 else 0.0
 
-    # Generate a sample trajectory (placeholder)
-    time = np.linspace(0, 10, 100)
-    trajectory = np.sin(time)  # Replace with actual trajectory data
-
-    time_step = time[1] - time[0]
-    le = lyapunov_exponent(trajectory, time_step)
-    print(f"Lyapunov Exponent: {le}")
-
-
-if __name__ == "__main__":
-    main()
+    lle = sum_log / t if t > 0 else np.nan
+    return times, ftle, lle
